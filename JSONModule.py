@@ -4,7 +4,7 @@ import os
 def salvar_json_metatrader(dados_genericos):
     # 2. Definição do caminho
     # O 'r' antes das aspas indica uma "raw string", essencial para caminhos Windows
-    caminho_pasta = r'C:\Users\ADMIN\AppData\Roaming\MetaQuotes\Terminal\Common\Files'
+    caminho_pasta = r'C:\Users\Xaviser\AppData\Roaming\MetaQuotes\Terminal\Common\Files'
     nome_arquivo = 'main.json'
     
     # Une o caminho e o nome do arquivo de forma segura para o SO

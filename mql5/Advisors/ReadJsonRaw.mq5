@@ -2,12 +2,6 @@
 //|                                              ReadJsonParsed.mq5 |
 //|                                  Lê e processa JSON estruturado  |
 //+------------------------------------------------------------------+
-#property script_show_inputs
-#property copyright "Copyright 2023, MetaQuotes Software Corp."
-#property link      "https://www.mql5.com"
-#property version   "1.00"
-#property description "Cria uma linha de tendência horizontal no preço 4210.8"
-
 #include <JAson.mqh> 
 
 input string InpFileName = "main.json";   

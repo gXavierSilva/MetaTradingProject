@@ -1,6 +1,6 @@
 import MetaTrader5 as mt5
 import pandas as pd
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import pytz
 from JSONModule import salvar_json_metatrader
 symbol = 'XAUUSD'
@@ -8,7 +8,7 @@ timeframe = mt5.TIMEFRAME_M5
 
 timezone = pytz.timezone("Etc/UTC")
 # day = datetime.now(tz=timezone).date() 
-day = datetime(2026, 1, 22).date()
+day = datetime(2026, 1, 28).date()
 date_initial = datetime.combine(day, time.min).replace(tzinfo=timezone)
 date_final = datetime.combine(day, time.max).replace(tzinfo=timezone)
 
@@ -169,8 +169,9 @@ def main():
             "high": alto,
             "low": baixo,
             "vol": volumi,
-            "initial": "2026.01.22 01:00:00",
-            "final": "2026.01.23 00:00:00"
+            "initial": f'{day} 01:00:00',
+            "final": f'{day} 23:55:00'
+            # "final": f'{day + timedelta(days=1)} 01:00:00'
         })
         canais = {
             "channel": canaizinhos
