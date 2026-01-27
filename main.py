@@ -165,7 +165,7 @@ def main():
         baixo = c[1]
         volumi = c[3]
         canaizinhos.append({
-            "channel_name": tipo,
+            "channel_name": f'{tipo} {day}',
             "high": alto,
             "low": baixo,
             "vol": volumi,
