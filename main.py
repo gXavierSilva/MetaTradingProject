@@ -8,7 +8,7 @@ timeframe = mt5.TIMEFRAME_M5
 
 timezone = pytz.timezone("Etc/UTC")
 # day = datetime.now(tz=timezone).date() 
-day = datetime(2026, 1, 28).date()
+day = datetime(2026, 2, 2).date()
 date_initial = datetime.combine(day, time.min).replace(tzinfo=timezone)
 date_final = datetime.combine(day, time.max).replace(tzinfo=timezone)
 
@@ -180,6 +180,12 @@ def main():
     salvar_json_metatrader(canais)
 
     mt5.shutdown()
+
+# ----------------------------------------------------------------------------------
+# FUNÇÃO PARA EMITIR JSON COM INFORMAÇÕES DE OPERAÇÃO
+# ----------------------------------------------------------------------------------
+def gerarjsoncominformacoesdeentrada():
+    print("damn")
 
 if __name__ == "__main__":
     main()

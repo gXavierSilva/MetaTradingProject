@@ -1,0 +1,18 @@
+{
+    "operations": [
+        {
+            "name": "openning",
+            "volume": 10,
+            "entry": 10,
+            "tk": 10,
+            "stop": 10
+        },
+        {
+            "name": "pcm_01",
+            "volume": 10,
+            "entry": 10,
+            "tk": 10,
+            "stop": 10
+        }
+    ]
+}

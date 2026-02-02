@@ -1,7 +1,0 @@
-{
-  "usuario": "Joao",
-  "config": {
-    "lote": 0.1
-  },
-  "ativos": ["EURUSD", "GBPUSD", "BRENT"]
-}
