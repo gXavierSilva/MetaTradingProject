@@ -8,7 +8,7 @@ timeframe = mt5.TIMEFRAME_M5
 
 timezone = pytz.timezone("Etc/UTC")
 # day = datetime.now(tz=timezone).date() 
-day = datetime(2026, 2, 2).date()
+day = datetime(2026, 2, 6).date()
 date_initial = datetime.combine(day, time.min).replace(tzinfo=timezone)
 date_final = datetime.combine(day, time.max).replace(tzinfo=timezone)
 
