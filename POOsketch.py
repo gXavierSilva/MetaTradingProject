@@ -23,6 +23,13 @@ class Access:
     def __init__(self, symbol, timeframe):
         pass
 
+class Candle:
+    def __init__(self, max, low, bodym, bodyl):
+        self.max = max
+        self.low = low
+        self.bodym = bodym
+        self.bodyl = bodyl
+
 abertura = Operation(0.01, 400, 200)
 
 print(abertura)
