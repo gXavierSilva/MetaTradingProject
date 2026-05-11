@@ -1,1 +1,20 @@
-__pycache__
+# Ambiente virtual
+venv/
+.env/
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# Build
+build/
+dist/
+*.spec
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
