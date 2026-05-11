@@ -1,22 +1,16 @@
 import MetaTrader5 as mt5
 import pytz
+import pandas as pd
 from datetime import datetime, time
 
-class Candle:
-    def __init__(self, wickm, wickl, bodym, bodyl):
-        self.wickm = wickm
-        self.wickl = wickl
-        self.bodym = bodym
-        self.bodyl = bodyl
-    
-    def properties(self):
-        json = {
-            "wick_max": self.wickm,
-            "wick_low": self.wickl,
-            "body_max": self.bodym,
-            "body_low": self.bodyl
-        }
-        print(json)
+class Access:
+    def __init__(self):
+        pass
+ 
+    def open(self):
+        if not mt5.initialize():
+            print("Falha ao inicializar MT5")
+            return
 
 class Operation:
     # constructor
@@ -48,7 +42,7 @@ class Operation:
         timezone = pytz.timezone("Etc/UTC")
         
         date_initial = datetime(self.date.year, self.date.month, self.date.day, self.date.hour, self.date.minute, self.date.second, tzinfo=timezone)
-        date_final = datetime(self.date.year, self.date.month, self.date.day, self.date.hour, 59, 59, tzinfo=timezone)
+        date_final = datetime(self.date.year, self.date.month, self.date.day, 23, 59, 59, tzinfo=timezone)
 
         rates = mt5.copy_rates_range(self.symbol, self.timeframe, date_initial, date_final)
         
@@ -59,6 +53,22 @@ class Operation:
     
     def __str__(self):
         return f"{self.lote} {self.take_level} {self.stop_level}"
+
+class Candle:
+    def __init__(self, wickm, wickl, bodym, bodyl):
+        self.wickm = wickm
+        self.wickl = wickl
+        self.bodym = bodym
+        self.bodyl = bodyl
+    
+    def properties(self):
+        json = {
+            "wick_max": self.wickm,
+            "wick_low": self.wickl,
+            "body_max": self.bodym,
+            "body_low": self.bodyl
+        }
+        print(json)
 
 class Channel:
     def __init__(self, reference, max_level, lower_level, expansion):
@@ -76,33 +86,123 @@ class Channel:
         }
         print(json)
 
-class Access:
-    def __init__(self):
+class Entry:
+    def __init__(self, symbol, volume, sl, tp, fill, description, type):
+        self.symbol = symbol
+        self.volume = volume
+        self.sl = sl
+        self.tp = tp
+        self.fill = fill
+        self.description = description
+        self.type = type
+
+    def properties(self):
+        json = {
+            "symbol": self.symbol,
+            "volume": self.volume,
+            "sl": self.sl,
+            "tp": self.tp,
+            "fill": self.fill,
+            "description": self.description,
+            "type": self.type
+        }
+        print(json)
+    
+    def setlevels(self):
         pass
- 
-    def open(self):
-        if not mt5.initialize():
-            print("Falha ao inicializar MT5")
-            return
 
-# inicial_candle = Candle(2, 4, 5, 3)
-# inicial_candle.properties()
-# print(" ")
+# Inicia o sistema MetaTrader5
+meta_trader = Access()
+meta_trader.open()
 
-# openning_channel = Channel("Canal de Abertura", 4456, 4436,(4456-4436))
-# openning_channel.properties()
-# print(" ")
+# Objeto principal
+hk50 = Operation('HK50.h', mt5.TIMEFRAME_M1, datetime(2026, 5, 7, 1, 00, 00), 0.01, 400, 200)
 
-xauh1m1 = Access()
-hour_turn = Operation('XAUUSD.h', mt5.TIMEFRAME_M1, datetime(2026, 4, 10, 2, 00, 00), 0.01, 400, 200)
+candles = pd.DataFrame(hk50.get_candles())
 
-# Roda script que inicia o sistema MetaTrader5
-xauh1m1.open()
+lista_4_primeiras = candles.head(4).values.tolist()
 
-ht_candles = hour_turn.get_candles()
-print(f'Quantidade de candles: {len(ht_candles)}')
-print(" ")
-print(ht_candles)
+maior_high = max(candle[2] for candle in lista_4_primeiras)
+menor_low = min(candle[3] for candle in lista_4_primeiras)
+
+print(' ')
+print(f'Canal de Abertura: {maior_high}, {menor_low}')
+
+formatada = datetime.fromtimestamp(lista_4_primeiras[3][0])
+
+rupture_check = Operation('HK50.h', mt5.TIMEFRAME_M1, datetime(2026, 5, 7, formatada.hour, formatada.minute, 00), 0.01, 400, 200)
+candles_for_rupture_check = rupture_check.get_candles()
+freme = pd.DataFrame(candles_for_rupture_check)
+candles_para_verificacao = freme.values.tolist()
+
+res, motivo = next(((c, "Higher Level") if c[4] > maior_high else (c, "Lower Level") for c in candles_para_verificacao if c[4] > maior_high or c[4] < menor_low), (None, "Nenhum"))
+
+print(' ')
+print(f"Rompeu: {motivo}; Candle: ({res})")
+
+direction = "Up" if motivo == "Higher Level" else "Down"
+channel_volume = (maior_high-menor_low)*100
+rupture_volume = (res[4] - (maior_high if direction == "Up" else menor_low))*100
+rupture_rate = abs(int((100*rupture_volume)/channel_volume))
+
+print(' ')
+print('---- ROMPIMENTO ----')
+print(f'Time: {datetime.fromtimestamp(res[0])}')
+print(f'Close: {res[4]}')
+print(f'Rupture Level: {motivo}')
+print(f'Direction: {direction}')
+print(f'Rupture Rate: {rupture_rate}%')
+print(f'Entry? {"Yes" if rupture_rate < 40 else "No"}')
+
+                    # Cria operação 
+                    #     operacao = Operation()
+
+                    # Pega todas as velas 
+                    # objetivo: pegar quatro primeiras velas
+                    #     operacao.conseguirvelas
+
+                    # Marcar Canal de Abertura
+                    #     localchanel = Channel()
+                    #     globalchanel = Channel()
+
+                    # Pegar todas as velas
+                    # objetivo: verificar rompimento do canal global
+                    #     operacao.conseguirvelas
+
+                    # Dependendo do rompimento:
+
+                    # Marcar Canal Um (se necessário)
+                    #     localchanel = Channel() #atualizar
+                    #     globalchanel = Channel() #atualizar
+
+                    # Pegar todas as velas
+                    # objetivo: verificar rompimento do canal global
+                    #     operacao.conseguirvelas
+
+                    # Abrir entrada no rompimento
+                    #     entrada = Entry()
+
+                    # Posicionar níveis de StopLoss e TakeProfit
+                    #     entrada.posicionartakestop
+                    
+                    # OU
+
+                    # Abrir entrada
+                    #     entrada = Entry()
+
+                    # Posicionar níveis de StopLoss e TakeProfit
+                    #     entrada.posicionartakestop
+
+
+
+
+
+
+
+
+
+
+# Agora eu preciso verificar todos os candles após o 4 candle para ver qual FECHA ultrapassando as linhas do canal
 
 # o script da virada de hora vai ser um script que vai começar a rodar em todo inicio de hora do dia e vai findar quando tiver um retorno da operação
 # o script da abertura vai ser um script que vai rodar todo inicio de abertura (configuravel, mas normalmente às 19:00 BRT) e vai findar quando tiver um retorno da operação
