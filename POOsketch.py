@@ -14,37 +14,18 @@ class Access:
 
 class Operation:
     # constructor
-    def __init__(self, symbol, timeframe, date, lote, take_level, stop_level):
+    def __init__(self, symbol, timeframe):
         self.symbol = symbol
         self.timeframe = timeframe
-        self.date = date
-        self.lote = lote
-        self.take_level = take_level
-        self.stop_level = stop_level
 
-    def properties(self):
-        json = {
-            "symbol": self.symbol,
-            "timeframe": self.timeframe,
-            "date": self.date,
-            "lote": self.lote,
-            "take": self.take_level,
-            "stop": self.stop_level
-        }
-        print(json)
- 
-    def get_candles(self):
+    def get_candles(self, description, initial, final):
+        print(description)
         # Garante que o símbolo está visível no MT5
         if not mt5.symbol_select(self.symbol, True):
             print(f"Falha ao selecionar {self.symbol}")
             return None
 
-        timezone = pytz.timezone("Etc/UTC")
-        
-        date_initial = datetime(self.date.year, self.date.month, self.date.day, self.date.hour, self.date.minute, self.date.second, tzinfo=timezone)
-        date_final = datetime(self.date.year, self.date.month, self.date.day, 23, 59, 59, tzinfo=timezone)
-
-        rates = mt5.copy_rates_range(self.symbol, self.timeframe, date_initial, date_final)
+        rates = mt5.copy_rates_range(self.symbol, self.timeframe, initial, final)
         
         if rates is None:
             print(f"Erro ao capturar dados: {mt5.last_error()}")
@@ -52,7 +33,7 @@ class Operation:
         return rates    
     
     def __str__(self):
-        return f"{self.lote} {self.take_level} {self.stop_level}"
+        return f"{self.symbol} {self.timeframe} {self.date}"
 
 class Candle:
     def __init__(self, wickm, wickl, bodym, bodyl):
@@ -71,20 +52,23 @@ class Candle:
         print(json)
 
 class Channel:
-    def __init__(self, reference, max_level, lower_level, expansion):
+    def __init__(self, reference, channel_scope, candles):
         self.reference = reference
-        self.max_level = max_level
-        self.lower_level = lower_level
-        self.expansion = expansion
+        self.channel_scope = channel_scope
+        self.candles = candles
     
-    def properties(self):
-        json = {
-            "reference": self.reference,
-            "max_level": self.max_level,
-            "lower_level": self.lower_level,
-            "expansion": self.expansion
-        }
-        print(json)
+    def set_channel(self):
+        if(self.reference == "openning channel"):
+            channel = {
+                "channel_name": self.reference,
+                "channel_scope": self.channel_scope,
+                "max_level" : max(candle[2] for candle in self.candles),
+                "lower_level": min(candle[3] for candle in self.candles),
+                "channel_expansion": (max(candle[2] for candle in self.candles) - min(candle[3] for candle in self.candles))*100
+            }
+        else:
+            channel = "Piroquinha"
+        return channel 
 
 class Entry:
     def __init__(self, symbol, volume, sl, tp, fill, description, type):
@@ -111,121 +95,61 @@ class Entry:
     def setlevels(self):
         pass
 
+timezone = pytz.timezone("Etc/UTC")
+
 # Inicia o sistema MetaTrader5
 meta_trader = Access()
 meta_trader.open()
 
-# Objeto principal
-hk50 = Operation('HK50.h', mt5.TIMEFRAME_M1, datetime(2026, 5, 7, 1, 00, 00), 0.01, 400, 200)
+# --------------------------------------////////////////////---------------------------------------------------
 
-candles = pd.DataFrame(hk50.get_candles())
+localchannel = None
+globalchannel = None
 
-lista_4_primeiras = candles.head(4).values.tolist()
+# Cria/inicia Operação 
+run = Operation('XAUUSD.h', mt5.TIMEFRAME_M5)
 
-maior_high = max(candle[2] for candle in lista_4_primeiras)
-menor_low = min(candle[3] for candle in lista_4_primeiras)
+# Pega velas iniciais 
+candles = pd.DataFrame(run.get_candles("openning", datetime(2026, 5, 25, 1, 00, 00, tzinfo=timezone), datetime(2026, 5, 25, 23, 59, 59, tzinfo=timezone)))
+initial_candles = candles.head(4).values.tolist()
 
-print(' ')
-print(f'Canal de Abertura: {maior_high}, {menor_low}')
+# Marca canais (Canal Local e Canal Global)
+local = Channel("openning channel", "local", initial_candles)
+geral = Channel("openning channel", "global", initial_candles)
+localchannel = local.set_channel()
+globalchannel = geral.set_channel()
+print(f'Nível Superior: {localchannel["max_level"]}')
+print(f'Nível Inferior: {localchannel["lower_level"]}')
 
-formatada = datetime.fromtimestamp(lista_4_primeiras[3][0])
+# # Pega resto das velas, objetivo: verificar rompimento para entrada ou duplicação de CA
+# candles = pd.DataFrame(run.get_candles())
+# remainder = candles.iloc[4:].values.tolist()
 
-rupture_check = Operation('HK50.h', mt5.TIMEFRAME_M1, datetime(2026, 5, 7, formatada.hour, formatada.minute, 00), 0.01, 400, 200)
-candles_for_rupture_check = rupture_check.get_candles()
-freme = pd.DataFrame(candles_for_rupture_check)
-candles_para_verificacao = freme.values.tolist()
+# # Verifica o rompimento
+# # Lembrar: ver o que essa verificação vai retornar
+# rompimento = remainder.check_rupture()
 
-res, motivo = next(((c, "Higher Level") if c[4] > maior_high else (c, "Lower Level") for c in candles_para_verificacao if c[4] > maior_high or c[4] < menor_low), (None, "Nenhum"))
+# # DEPENDENDO DO ROMPIMENTO:
 
-print(' ')
-print(f"Rompeu: {motivo}; Candle: ({res})")
+# if(rompimento > 40):
+# # Rompimento: > 40%
+#     local = Channel() #atualiza
+#     geral = Channel() #atualiza
+#     localchannel = local.set_channel()
+#     globalchannel = geral.set_channel()
+#     print(localchannel, globalchannel)
 
-direction = "Up" if motivo == "Higher Level" else "Down"
-channel_volume = (maior_high-menor_low)*100
-rupture_volume = (res[4] - (maior_high if direction == "Up" else menor_low))*100
-rupture_rate = abs(int((100*rupture_volume)/channel_volume))
+# # Pega resto das velas, verificar rompimento para entrada
+#     candles = pd.DataFrame(run.get_candles())
+#     remainder = candles.iloc[4:].values.tolist()
+# else:
+# # Rompimento: < 40%
+# # Realiza a entrada, caso confirmada pelo user
+# # 0.01 = volume
+# # 400  = channel position 01
+# # 200  = channel position 02
+#     trade = Entry(0.01, 400, 200)
+# # Posiciona os níveis do trade (SL e TP)
+#     trade.positionlevels()
 
-print(' ')
-print('---- ROMPIMENTO ----')
-print(f'Time: {datetime.fromtimestamp(res[0])}')
-print(f'Close: {res[4]}')
-print(f'Rupture Level: {motivo}')
-print(f'Direction: {direction}')
-print(f'Rupture Rate: {rupture_rate}%')
-print(f'Entry? {"Yes" if rupture_rate < 40 else "No"}')
-
-                    # Cria operação 
-                    #     operacao = Operation()
-
-                    # Pega todas as velas 
-                    # objetivo: pegar quatro primeiras velas
-                    #     operacao.conseguirvelas
-
-                    # Marcar Canal de Abertura
-                    #     localchanel = Channel()
-                    #     globalchanel = Channel()
-
-                    # Pegar todas as velas
-                    # objetivo: verificar rompimento do canal global
-                    #     operacao.conseguirvelas
-
-                    # Dependendo do rompimento:
-
-                    # Marcar Canal Um (se necessário)
-                    #     localchanel = Channel() #atualizar
-                    #     globalchanel = Channel() #atualizar
-
-                    # Pegar todas as velas
-                    # objetivo: verificar rompimento do canal global
-                    #     operacao.conseguirvelas
-
-                    # Abrir entrada no rompimento
-                    #     entrada = Entry()
-
-                    # Posicionar níveis de StopLoss e TakeProfit
-                    #     entrada.posicionartakestop
-                    
-                    # OU
-
-                    # Abrir entrada
-                    #     entrada = Entry()
-
-                    # Posicionar níveis de StopLoss e TakeProfit
-                    #     entrada.posicionartakestop
-
-
-
-
-
-
-
-
-
-
-# Agora eu preciso verificar todos os candles após o 4 candle para ver qual FECHA ultrapassando as linhas do canal
-
-# o script da virada de hora vai ser um script que vai começar a rodar em todo inicio de hora do dia e vai findar quando tiver um retorno da operação
-# o script da abertura vai ser um script que vai rodar todo inicio de abertura (configuravel, mas normalmente às 19:00 BRT) e vai findar quando tiver um retorno da operação
-# ou seja, tenho dois scipts que têm a lógica semelhante, porém que rodam em momentos diferentes 
-# preciso verificar se o script para backtest é o mesmo script que para rodar no dia atual. se não for, tornar o mesmo.
-
-# A logica do script de Virada de Hora vai ser → Para toda hora exata que o dia tiver, ele vai executar o script:
-#     Pegar as quatro primeiras velas a partir daquele horário; Pegar os níveis extremos (pavios); Marcar o Canal
-#     de Abertura com eles; Verificar o tamanho do canal e, dependendo do tamanho, duplicar ele para a direção
-#     que romper, ou fazer entrada com o lote calculado (fazer script para calcular lote) para a direção que
-#     romper.
-# Atenção! Para cada hora, um script novo inicia. O Passado só terminar de rodar quando a operação conclui.
-
-# Prováveis métodos a serem criados:
-#     mark_channel ou get_channel
-#     check_rupture → vai ser nesse script que vou passar o dado que diz que vai duplicar ou já entrar?
-#     get_lot
-#     trade_entry
-#     duplicate_channel (esse método, na verdade, é o mesmo do mark_channel, então a existencia dele
-#         não é necessária, porém preciso pensar na lógica que faz um novo canal ser criado caso o
-#         trade duplique o canal mesmo. Este novo canal será a junção do canal inicial e do
-#         duplicado, e a entrada ocorrerá quando ele for rompido, formando o C2, que é a mesma
-#         extensão dele.)
-
-# horas_formatadas = [[f"{h:02d}", "00", "00"] for h in range(24)]
-# print(horas_formatadas)
+# # ...

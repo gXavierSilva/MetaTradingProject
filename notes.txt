@@ -1,0 +1,27 @@
+# Agora eu preciso verificar todos os candles após o 4 candle para ver qual FECHA ultrapassando as linhas do canal
+
+# o script da virada de hora vai ser um script que vai começar a rodar em todo inicio de hora do dia e vai findar quando tiver um retorno da operação
+# o script da abertura vai ser um script que vai rodar todo inicio de abertura (configuravel, mas normalmente às 19:00 BRT) e vai findar quando tiver um retorno da operação
+# ou seja, tenho dois scipts que têm a lógica semelhante, porém que rodam em momentos diferentes 
+# preciso verificar se o script para backtest é o mesmo script que para rodar no dia atual. se não for, tornar o mesmo.
+
+# A logica do script de Virada de Hora vai ser → Para toda hora exata que o dia tiver, ele vai executar o script:
+#     Pegar as quatro primeiras velas a partir daquele horário; Pegar os níveis extremos (pavios); Marcar o Canal
+#     de Abertura com eles; Verificar o tamanho do canal e, dependendo do tamanho, duplicar ele para a direção
+#     que romper, ou fazer entrada com o lote calculado (fazer script para calcular lote) para a direção que
+#     romper.
+# Atenção! Para cada hora, um script novo inicia. O Passado só terminar de rodar quando a operação conclui.
+
+# Prováveis métodos a serem criados:
+#     mark_channel ou get_channel
+#     check_rupture → vai ser nesse script que vou passar o dado que diz que vai duplicar ou já entrar?
+#     get_lot
+#     trade_entry
+#     duplicate_channel (esse método, na verdade, é o mesmo do mark_channel, então a existencia dele
+#         não é necessária, porém preciso pensar na lógica que faz um novo canal ser criado caso o
+#         trade duplique o canal mesmo. Este novo canal será a junção do canal inicial e do
+#         duplicado, e a entrada ocorrerá quando ele for rompido, formando o C2, que é a mesma
+#         extensão dele.)
+
+# horas_formatadas = [[f"{h:02d}", "00", "00"] for h in range(24)]
+# print(horas_formatadas)
