@@ -72,11 +72,24 @@ class Channel:
     
     def verify_rupture(self, channel, candles):
         # Script de verificação de rompimento
-        # ...
+        for c in candles:
+            if c[4] > channel["max_level"]:
+                print(datetime.fromtimestamp(c[0]))
+                print("Rompimento superior")
+                break
+            elif c[4] < channel["lower_level"]:
+                print(datetime.fromtimestamp(c[0]))
+                print("Rompimento inferior")
+                break
+            else:
+                print("Nenhum rompimento")
+                pass
+
         # Retorno da verificação em um objeto
         objetoderompimento = {
             "candle": candles[0],
             "ratio": 40,
+            "direction": "down",
         }
         # objetoderompimento = Rompimento()
         return objetoderompimento
@@ -121,7 +134,7 @@ globalchannel = None
 run = Operation('XAUUSD.h', mt5.TIMEFRAME_M5)
 
 # Pega velas iniciais 
-candles = pd.DataFrame(run.get_candles("openning", datetime(2026, 5, 27, 1, 00, 00, tzinfo=timezone), datetime(2026, 5, 27, 23, 59, 59, tzinfo=timezone)))
+candles = pd.DataFrame(run.get_candles("openning", datetime(2026, 5, 26, 1, 00, 00, tzinfo=timezone), datetime(2026, 5, 26, 23, 59, 59, tzinfo=timezone)))
 initial_candles = candles.head(4).values.tolist()
 
 # Marca canais (Canal Local e Canal Global)
@@ -135,9 +148,9 @@ print(f'Nível Inferior: {localchannel["lower_level"]}')
 # Verifica o rompimento
 # Pega resto das velas, objetivo: verificar rompimento para entrada ou duplicação de CA
 remainder = candles.iloc[4:].values.tolist()
-rompimento = geral.verify_rupture(globalchannel, remainder)
+rupture = geral.verify_rupture(globalchannel, remainder)
 print(" ")
-print(rompimento)
+print(rupture)
 
 # # DEPENDENDO DO ROMPIMENTO:
 
