@@ -1,8 +1,12 @@
 import MetaTrader5 as mt5
 import pytz
 import pandas as pd
-from datetime import datetime, time
+import math
+from typing import Any
+from datetime import datetime
+from abc import ABC, abstractmethod
 
+# Abertura (1), Máximo (2), Mínimo (3), Fechamento(4)
 class Access:
     def __init__(self):
         pass
@@ -19,7 +23,6 @@ class Operation:
         self.timeframe = timeframe
 
     def get_candles(self, description, initial, final):
-        print(description)
         # Garante que o símbolo está visível no MT5
         if not mt5.symbol_select(self.symbol, True):
             print(f"Falha ao selecionar {self.symbol}")
@@ -51,13 +54,41 @@ class Candle:
         }
         print(json)
 
-class Channel:
-    def __init__(self, reference, channel_scope, candles):
+class Channel(ABC):
+    def __init__(self, reference: str, channel_scope: str, candles: list[Any]):
         self.reference = reference
         self.channel_scope = channel_scope
         self.candles = candles
-    
-    def set_channel(self):
+
+    # Verifica, dentro de um intervalo de candles, se houve o rompimento do canal passado
+    def verify_rupture(self, channel: dict[str, float], candles: list[Any]):
+        for candle in candles:
+            if candle[4] > channel["max_level"]:
+                rupture = {
+                    "candle": candle,
+                    "ratio": math.trunc(((int((candle[4]-channel["max_level"])*100)/channel["channel_expansion"])*100)*100)/100,
+                    "direction": "up",
+                }
+                break
+            elif candle[4] < channel["lower_level"]:
+                rupture = {
+                    "candle": candle,
+                    "ratio": math.trunc(((int((channel["lower_level"]-candle[4])*100)/channel["channel_expansion"])*100)*100)/100,
+                    "direction": "down",
+                }
+                break
+            else:
+                pass
+        return rupture
+
+    # Com os atributos passados, cria um objeto com as propriedades de um canal
+    @abstractmethod
+    def set_channel(self, previous_channel=None, rupture_candle=None) -> dict[str, float]:
+        pass
+
+class GlobalChannel(Channel):
+    def set_channel(self) -> dict[str, float]:
+        # Monta o canal com base nos quatro primeiros candles
         if(self.reference == "openning channel"):
             channel = {
                 "channel_name": self.reference,
@@ -66,33 +97,20 @@ class Channel:
                 "lower_level": min(candle[3] for candle in self.candles),
                 "channel_expansion": (max(candle[2] for candle in self.candles) - min(candle[3] for candle in self.candles))*100
             }
-        else:
-            channel = "Piroquinha"
         return channel
-    
-    def verify_rupture(self, channel, candles):
-        # Script de verificação de rompimento
-        for c in candles:
-            if c[4] > channel["max_level"]:
-                print(datetime.fromtimestamp(c[0]))
-                print("Rompimento superior")
-                break
-            elif c[4] < channel["lower_level"]:
-                print(datetime.fromtimestamp(c[0]))
-                print("Rompimento inferior")
-                break
-            else:
-                print("Nenhum rompimento")
-                pass
 
-        # Retorno da verificação em um objeto
-        objetoderompimento = {
-            "candle": candles[0],
-            "ratio": 40,
-            "direction": "down",
-        }
-        # objetoderompimento = Rompimento()
-        return objetoderompimento
+class LocalChannel(Channel):
+    def set_channel(self) -> dict[str, float]:
+        # Monta o canal com base nos quatro primeiros candles
+        if(self.reference == "openning channel"):
+            channel = {
+                "channel_name": self.reference,
+                "channel_scope": self.channel_scope,
+                "max_level" : max(candle[2] for candle in self.candles),
+                "lower_level": min(candle[3] for candle in self.candles),
+                "channel_expansion": (max(candle[2] for candle in self.candles) - min(candle[3] for candle in self.candles))*100
+            }
+        return channel
 
 class Entry:
     def __init__(self, symbol, volume, sl, tp, fill, description, type):
@@ -104,7 +122,7 @@ class Entry:
         self.description = description
         self.type = type
 
-    def properties(self):
+    def set_levels(self):
         json = {
             "symbol": self.symbol,
             "volume": self.volume,
@@ -114,10 +132,7 @@ class Entry:
             "description": self.description,
             "type": self.type
         }
-        print(json)
-    
-    def setlevels(self):
-        pass
+        return json
 
 timezone = pytz.timezone("Etc/UTC")
 
@@ -125,54 +140,118 @@ timezone = pytz.timezone("Etc/UTC")
 meta_trader = Access()
 meta_trader.open()
 
-# --------------------------------------////////////////////---------------------------------------------------
+day_initial = datetime(2026, 6, 12, 1, 00, 00, tzinfo=timezone)
+day_final = datetime(2026, 6, 12, 23, 59, 59, tzinfo=timezone)
 
-localchannel = None
-globalchannel = None
-
-# Cria/inicia Operação 
 run = Operation('XAUUSD.h', mt5.TIMEFRAME_M5)
 
-# Pega velas iniciais 
-candles = pd.DataFrame(run.get_candles("openning", datetime(2026, 5, 26, 1, 00, 00, tzinfo=timezone), datetime(2026, 5, 26, 23, 59, 59, tzinfo=timezone)))
-initial_candles = candles.head(4).values.tolist()
+while True:
+    # Pega todas as velas dentro do intervalo passado
+    candles = pd.DataFrame(run.get_candles("openning", day_initial, day_final))
 
-# Marca canais (Canal Local e Canal Global)
-local = Channel("openning channel", "local", initial_candles)
-geral = Channel("openning channel", "global", initial_candles)
-localchannel = local.set_channel()
-globalchannel = geral.set_channel()
-print(f'Nível Superior: {localchannel["max_level"]}')
-print(f'Nível Inferior: {localchannel["lower_level"]}')
+    # Pega quatro velas iniciais 
+    initial_candles = candles.head(4).values.tolist()
 
-# Verifica o rompimento
-# Pega resto das velas, objetivo: verificar rompimento para entrada ou duplicação de CA
-remainder = candles.iloc[4:].values.tolist()
-rupture = geral.verify_rupture(globalchannel, remainder)
-print(" ")
-print(rupture)
+#   //////////////////////////////////     MARCA CANAL     \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-# # DEPENDENDO DO ROMPIMENTO:
+    # Marca canais (Canal Local e Canal Global)
+    local = LocalChannel("openning channel", "local", initial_candles)
+    localchannel = local.set_channel()
+    geral = GlobalChannel("openning channel", "global", initial_candles)
+    globalchannel = geral.set_channel()
 
-# if(rompimento > 40):
-# # Rompimento: > 40%
-#     local = Channel() #atualiza
-#     geral = Channel() #atualiza
-#     localchannel = local.set_channel()
-#     globalchannel = geral.set_channel()
-#     print(localchannel, globalchannel)
+    print(" ")
+    print("Canal de Abertura: ")
+    for property in globalchannel:
+        print(f'    {property}: {globalchannel[property]}')
+    print(" ")
 
-# # Pega resto das velas, verificar rompimento para entrada
-#     candles = pd.DataFrame(run.get_candles())
-#     remainder = candles.iloc[4:].values.tolist()
-# else:
-# # Rompimento: < 40%
-# # Realiza a entrada, caso confirmada pelo user
-# # 0.01 = volume
-# # 400  = channel position 01
-# # 200  = channel position 02
-#     trade = Entry(0.01, 400, 200)
-# # Posiciona os níveis do trade (SL e TP)
-#     trade.positionlevels()
+#   //////////////////////////////////     VERIFICA ROMPIMENTO     \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-# # ...
+    # Verifica o rompimento do canal global
+    remainder = candles.iloc[4:].values.tolist()
+    rupture = geral.verify_rupture(globalchannel, remainder)
+    print(rupture)
+    print(" ")
+
+#   //////////////////////////////////     ENTRADA (CASO ATENDA REQUISITOS)     \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    requisitos = False
+    volume, sl, tp, description, requisitos = False
+
+    if requisitos:
+        print("Abrindo operação.")
+        trade = Entry("HK50.h", volume, sl, tp, "Tudo/Nada", description, type)
+    
+    break
+        
+    # points = globalchannel["channel_expansion"]+2*((15/100)*globalchannel["channel_expansion"])
+    # volume = (0.1*50*1000)/(0.13*points)
+    # sl = globalchannel["lower_level"]-((15/100)*(globalchannel["channel_expansion"]/100)) if rupture["direction"] == "up" else globalchannel["max_level"]+((15/100)*(globalchannel["channel_expansion"]/100))
+    # tp = (globalchannel["max_level"]+(globalchannel["channel_expansion"]/100))-((15/100)*(globalchannel["channel_expansion"]/100)) if rupture["direction"] == "up" else (globalchannel["lower_level"]-(globalchannel["channel_expansion"]/100))+((15/100)*(globalchannel["channel_expansion"]/100))
+    # description = "Compra" if rupture["direction"] == "up" else "Venda"
+    # type = "buy" if rupture["direction"] == "up" else "sell"
+
+    # trade = Entry("HK50.h", volume, sl, tp, "Tudo/Nada", description, type)
+
+    # trade_object = trade.set_levels()
+
+    # print("Propriedades da entrada:")
+    # print(trade_object)
+    # print(" ")
+
+    # # verificar resultado da operação
+    # trade_candles = pd.DataFrame(run.get_candles("trade", datetime.fromtimestamp((rupture["candle"][0]), tz=timezone), day_final))
+    # trade_candles = trade_candles.values.tolist()
+    # for candle in trade_candles:
+    #     if trade_object["type"] == "buy":
+    #         if candle[2] >= trade_object["tp"]:
+    #             print("Resultado: Take")
+    #             break
+    #         elif candle[3] <= trade_object["sl"]:
+    #             print("Resultado: Stop")
+    #             break
+    #         else:
+    #             pass
+    #     elif trade_object["type"] == "sell":
+    #         if candle[2] >= trade_object["sl"]:
+    #             print("Resultado: Stop")
+    #             break
+    #         elif candle[3] <= trade_object["tp"]:
+    #             print("Resultado: Take")
+    #             break
+    #         else:
+    #             pass
+
+#   //////////////////////////////////     ANOTAÇÕES     \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+#   Quando CA
+#       Canal Local: CA
+#       Canal Global: CA
+#   Quando C1
+#       Canal Local: C1 (CA)
+#       Canal Global: C1+CA
+#   Quando C2
+#       Canal Local: C2 (C1+CA)
+#       Canal Global: C2+(C1+CA)
+
+#   Addons (propriedades da operação)
+#       Alvo
+#           Take de 1 (-R:R)
+#           1:1
+#           Take de 2 (+R:R)
+#       Otimização de R:R
+#       Entrada direta ou formação de C1
+#       Virada de mão caso StopLoss
+
+#   Além de identificar se é canal global ou local, precisa de script
+#   para identificar se é canal de abertura, primeiro canal, segundo canal...
+#   Canal Local: canal formado no momento da execução
+#   Canal Global: canal de referencia atual, que servirá para identificação de rompimento e formação de novos canais
+
+#   Canal de Abertura: Primeiro canal a ser formado, a partir das quatro primeiras velas
+#   Canal 01: Segundo canal a ser formado, mesma extensão do canal local anterior, novo canal local e canal global CA+C1
+#   Canal 02: Terceiro canal a ser formado, mesma extensão do canal global (c1+ca)
+
+#   Na criação do canal, preciso passar um identificador que mostra qual o índice dele
+#   se é o canal 0 (CA), se é o canal 1 (c1), se é o canal 2 (c2) e etc 
+#   isso para conseguir calcular o Canal Global

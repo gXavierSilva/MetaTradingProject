@@ -25,3 +25,18 @@
 
 # horas_formatadas = [[f"{h:02d}", "00", "00"] for h in range(24)]
 # print(horas_formatadas)
+
+        # volume = lote
+        # pontos (extensão do canal global somada com 2x a margem do sl) aplicados à calculadora de lote
+
+        # sl = nível onde stoploss vai ser posicionado
+        # se compra, stoploss lowerlevel - 15%, se venda, maxlevel + 15%
+
+        # tp = nível onde takeprofit vai ser posicionado
+        # mesma lógica do sl, mas ao contrário 
+
+        # fill = Tudo/Nada (padrão)
+
+        # description = inicialmente, compra ou venda, depois, todas informações da operação
+
+        # type = 'sell' ou 'buy'
