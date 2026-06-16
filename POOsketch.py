@@ -145,42 +145,44 @@ day_final = datetime(2026, 6, 12, 23, 59, 59, tzinfo=timezone)
 
 run = Operation('XAUUSD.h', mt5.TIMEFRAME_M5)
 
+# Pega todas as velas dentro do intervalo passado
+candles = pd.DataFrame(run.get_candles("openning", day_initial, day_final))
+
+# Pega quatro velas iniciais 
+initial_candles = candles.head(4).values.tolist()
+
 while True:
-    # Pega todas as velas dentro do intervalo passado
-    candles = pd.DataFrame(run.get_candles("openning", day_initial, day_final))
-
-    # Pega quatro velas iniciais 
-    initial_candles = candles.head(4).values.tolist()
-
-#   //////////////////////////////////     MARCA CANAL     \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# //////////////////////////////////  MARCA CANAL  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
     # Marca canais (Canal Local e Canal Global)
     local = LocalChannel("openning channel", "local", initial_candles)
-    localchannel = local.set_channel()
     geral = GlobalChannel("openning channel", "global", initial_candles)
+    localchannel = local.set_channel()
     globalchannel = geral.set_channel()
 
     print(" ")
-    print("Canal de Abertura: ")
+    print("Canal: ")
     for property in globalchannel:
         print(f'    {property}: {globalchannel[property]}')
-    print(" ")
 
-#   //////////////////////////////////     VERIFICA ROMPIMENTO     \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# //////////////////////////////////  VERIFICA ROMPIMENTO  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-    # Verifica o rompimento do canal global
+    # Verifica o rompimento do canal (global)
     remainder = candles.iloc[4:].values.tolist()
     rupture = geral.verify_rupture(globalchannel, remainder)
-    print(rupture)
+    
     print(" ")
+    print("Rompimento: ")
+    for property in rupture:
+        print(f'    {property}: {rupture[property]}')
 
-#   //////////////////////////////////     ENTRADA (CASO ATENDA REQUISITOS)     \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    requisitos = False
-    volume, sl, tp, description, requisitos = False
+# //////////////////////////////////  ENTRADA (CASO ATENDA REQUISITOS)  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # requisitos = False
+    # volume, sl, tp, description, requisitos = False
 
-    if requisitos:
-        print("Abrindo operação.")
-        trade = Entry("HK50.h", volume, sl, tp, "Tudo/Nada", description, type)
+    # if requisitos:
+    #     print("Abrindo operação.")
+    #     trade = Entry("HK50.h", volume, sl, tp, "Tudo/Nada", description, type)
     
     break
         
@@ -221,37 +223,3 @@ while True:
     #             break
     #         else:
     #             pass
-
-#   //////////////////////////////////     ANOTAÇÕES     \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
-#   Quando CA
-#       Canal Local: CA
-#       Canal Global: CA
-#   Quando C1
-#       Canal Local: C1 (CA)
-#       Canal Global: C1+CA
-#   Quando C2
-#       Canal Local: C2 (C1+CA)
-#       Canal Global: C2+(C1+CA)
-
-#   Addons (propriedades da operação)
-#       Alvo
-#           Take de 1 (-R:R)
-#           1:1
-#           Take de 2 (+R:R)
-#       Otimização de R:R
-#       Entrada direta ou formação de C1
-#       Virada de mão caso StopLoss
-
-#   Além de identificar se é canal global ou local, precisa de script
-#   para identificar se é canal de abertura, primeiro canal, segundo canal...
-#   Canal Local: canal formado no momento da execução
-#   Canal Global: canal de referencia atual, que servirá para identificação de rompimento e formação de novos canais
-
-#   Canal de Abertura: Primeiro canal a ser formado, a partir das quatro primeiras velas
-#   Canal 01: Segundo canal a ser formado, mesma extensão do canal local anterior, novo canal local e canal global CA+C1
-#   Canal 02: Terceiro canal a ser formado, mesma extensão do canal global (c1+ca)
-
-#   Na criação do canal, preciso passar um identificador que mostra qual o índice dele
-#   se é o canal 0 (CA), se é o canal 1 (c1), se é o canal 2 (c2) e etc 
-#   isso para conseguir calcular o Canal Global

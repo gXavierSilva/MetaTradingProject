@@ -40,3 +40,26 @@
         # description = inicialmente, compra ou venda, depois, todas informações da operação
 
         # type = 'sell' ou 'buy'
+
+# //////////////////////////////////  ANOTAÇÕES  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+#   ✓ | Na criação do canal, preciso passar um identificador que mostra qual o índice dele; se é o canal 0 (CA), se é o canal 1 (c1), se é o canal 2 (c2) e etc; isso para conseguir calcular o Canal Global
+
+#   Propriedades da operação:
+#       Alvo (Take de 1 (-R:R), 1:1, Take de 2 (+R:R))
+#       Otimização de R:R
+#       Entrada direta ou formação de C1
+#       Virada de mão caso StopLoss
+
+#   Canal Local: canal formado no momento da execução
+#   Canal Global: canal de referencia atual, que servirá para identificação de rompimento e formação de novos canais
+
+#   Canal de Abertura: Primeiro canal a ser formado, a partir das quatro primeiras velas
+#       Canal Local: CA
+#       Canal Global: CA
+#   Canal 01: Segundo canal a ser formado, mesma extensão do canal local anterior, novo canal local e canal global CA+C1
+#       Canal Local: C1 (CA)
+#       Canal Global: C1+CA
+#   Canal 02: Terceiro canal a ser formado, mesma extensão do canal global (c1+ca)
+#       Canal Local: C2 (C1+CA)
+#       Canal Global: C2+(C1+CA)
